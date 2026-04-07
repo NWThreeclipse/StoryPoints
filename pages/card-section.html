@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #172b4d; padding: 8px 0; }
+    .header-label { font-size: 11px; text-transform: uppercase; color: #5e6c84; font-weight: 600; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .entry-row { display: flex; align-items: center; padding: 6px 8px; margin: 2px 0; background: #f4f5f7; border-radius: 4px; }
+    .entry-row:hover { background: #ebecf0; }
+    .entry-discipline { flex: 1; font-weight: 500; }
+    .entry-points { color: #0079bf; font-weight: 600; margin-right: 8px; }
+    .remove-x { color: #b3bac5; cursor: pointer; padding: 0 4px; font-size: 16px; line-height: 1; }
+    .remove-x:hover { color: #eb5a46; }
+    .total-row { display: flex; align-items: center; padding: 6px 8px; margin: 4px 0 0; border-top: 1px solid #e1e4e8; }
+    .total-label { flex: 1; font-weight: 600; color: #5e6c84; }
+    .total-points { font-weight: 700; color: #1d9e75; }
+    .add-row { display: flex; gap: 6px; margin-top: 8px; }
+    .add-row input { padding: 6px 8px; border: 2px solid #dfe1e6; border-radius: 4px; font-size: 13px; outline: none; }
+    .add-row input:focus { border-color: #0079bf; }
+    .add-row input[type="text"] { flex: 1; min-width: 0; }
+    .add-row input[type="number"] { width: 60px; }
+    .add-btn { padding: 6px 12px; background: #0079bf; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .add-btn:hover { background: #026aa7; }
+    .add-btn:disabled { background: #b3bac5; cursor: default; }
+    .empty { color: #97a0af; font-size: 13px; padding: 4px 0; }
+  </style>
+</head>
+<body>
+  <div id="content"></div>
+
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script>
+    var t = TrelloPowerUp.iframe();
+
+    function render() {
+      t.card('id').then(function(card) {
+        t.get(card.id, 'shared', 'storyPoints').then(function(data) {
+          data = data || { entries: [] };
+          var entries = data.entries || [];
+          var content = document.getElementById('content');
+          var html = '';
+
+          if (entries.length > 0) {
+            html += '<div class="header-label">Point breakdown</div>';
+            entries.forEach(function(entry, i) {
+              html += '<div class="entry-row">' +
+                '<span class="entry-discipline">' + entry.discipline + '</span>' +
+                '<span class="entry-points">' + entry.points + ' pts</span>' +
+                '<span class="remove-x" data-index="' + i + '" title="Remove">✕</span>' +
+                '</div>';
+            });
+
+            if (entries.length > 1) {
+              var total = entries.reduce(function(s, e) { return s + e.points; }, 0);
+              html += '<div class="total-row">' +
+                '<span class="total-label">Total</span>' +
+                '<span class="total-points">' + total + ' pts</span>' +
+                '</div>';
+            }
+          } else {
+            html += '<div class="empty">No story points assigned yet.</div>';
+          }
+
+          html += '<div class="add-row">' +
+            '<input type="text" id="disc-input" placeholder="Discipline (e.g. Art)">' +
+            '<input type="number" id="pts-input" placeholder="Pts" min="0">' +
+            '<button class="add-btn" id="add-btn">+</button>' +
+            '</div>';
+
+          content.innerHTML = html;
+
+          // Add entry
+          document.getElementById('add-btn').addEventListener('click', function() {
+            var disc = document.getElementById('disc-input').value.trim();
+            var pts = parseInt(document.getElementById('pts-input').value, 10);
+            if (!disc || isNaN(pts) || pts < 0) return;
+
+            t.get(card.id, 'shared', 'storyPoints').then(function(d) {
+              d = d || { entries: [] };
+              d.entries.push({ discipline: disc, points: pts });
+              return t.set(card.id, 'shared', 'storyPoints', d);
+            }).then(function() {
+              render();
+            });
+          });
+
+          // Enter key to submit
+          var inputs = content.querySelectorAll('#disc-input, #pts-input');
+          inputs.forEach(function(inp) {
+            inp.addEventListener('keydown', function(e) {
+              if (e.key === 'Enter') document.getElementById('add-btn').click();
+            });
+          });
+
+          // Remove entry
+          content.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-x')) {
+              var idx = parseInt(e.target.getAttribute('data-index'), 10);
+              t.get(card.id, 'shared', 'storyPoints').then(function(d) {
+                d = d || { entries: [] };
+                d.entries.splice(idx, 1);
+                return t.set(card.id, 'shared', 'storyPoints', d);
+              }).then(function() {
+                render();
+              });
+            }
+          });
+
+          t.sizeTo('#content');
+        });
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
